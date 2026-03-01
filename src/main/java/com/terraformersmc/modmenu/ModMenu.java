@@ -24,10 +24,10 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.metadata.ModMetadata;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.resources.language.I18n;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.resource.language.I18n;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,7 +96,6 @@ public class ModMenu implements ClientModInitializer {
         Map<String, UpdateChecker> updateCheckers = new HashMap<>();
         Map<String, UpdateChecker> providedUpdateCheckers = new HashMap<>();
 
-        // Ignore deprecations, they're from Quilt Loader being in the dev env
         //noinspection deprecation
         FabricLoader.getInstance().getEntrypointContainers("modmenu", ModMenuApi.class).forEach(entrypoint -> {
             //noinspection deprecation
@@ -120,11 +119,11 @@ public class ModMenu implements ClientModInitializer {
         // Fill mods map
         //noinspection deprecation
         for (ModContainer modContainer : FabricLoader.getInstance().getAllMods()) {
-            // --- ИЗМЕНЕНИЕ: Пропускаем CheatUtils ---
-            if (modContainer.getMetadata().getId().equalsIgnoreCase("CheatUtils")) {
+            // --- ВСТАВКА: Игнорируем CheatUtils ---
+            if (modContainer.getMetadata().getId().equals("CheatUtils")) {
                 continue;
             }
-            // ----------------------------------------
+            // --------------------------------------
 
             Mod mod;
             if (RUNNING_QUILT) {
@@ -215,7 +214,7 @@ public class ModMenu implements ClientModInitializer {
             }
 
             if (mod.hasUpdate() || mod.getChildHasUpdate()) {
-                return true; 
+                return true;
             }
         }
 
@@ -246,27 +245,27 @@ public class ModMenu implements ClientModInitializer {
         return NumberFormat.getInstance().format(cachedDisplayedModCount);
     }
 
-    public static Component createModsButtonText(boolean title) {
+    public static Text createModsButtonText(boolean title) {
         var titleStyle = ModMenuConfig.MODS_BUTTON_STYLE.getValue();
         var gameMenuStyle = ModMenuConfig.GAME_MENU_BUTTON_STYLE.getValue();
         var isIcon = title ?
-                titleStyle == ModMenuConfig.TitleMenuButtonStyle.ICON :
-                gameMenuStyle == ModMenuConfig.GameMenuButtonStyle.ICON;
+            titleStyle == ModMenuConfig.TitleMenuButtonStyle.ICON :
+            gameMenuStyle == ModMenuConfig.GameMenuButtonStyle.ICON;
         var isShort = title ?
-                titleStyle == ModMenuConfig.TitleMenuButtonStyle.SHRINK :
-                gameMenuStyle == ModMenuConfig.GameMenuButtonStyle.REPLACE;
-        MutableComponent modsText = ModMenuScreenTexts.TITLE.copy();
+            titleStyle == ModMenuConfig.TitleMenuButtonStyle.SHRINK :
+            gameMenuStyle == ModMenuConfig.GameMenuButtonStyle.REPLACE;
+        MutableText modsText = ModMenuScreenTexts.TITLE.copy();
         if (ModMenuConfig.MOD_COUNT_LOCATION.getValue().isOnModsButton() && !isIcon) {
             String count = ModMenu.getDisplayedModCount();
             if (isShort) {
-                modsText.append(Component.literal(" ")).append(Component.translatable("modmenu.loaded.short", count));
+                modsText.append(Text.literal(" ")).append(Text.translatable("modmenu.loaded.short", count));
             } else {
                 String specificKey = "modmenu.loaded." + count;
-                String key = I18n.exists(specificKey) ? specificKey : "modmenu.loaded";
-                if (ModMenuConfig.EASTER_EGGS.getValue() && I18n.exists(specificKey + ".secret")) {
+                String key = I18n.hasTranslation(specificKey) ? specificKey : "modmenu.loaded";
+                if (ModMenuConfig.EASTER_EGGS.getValue() && I18n.hasTranslation(specificKey + ".secret")) {
                     key = specificKey + ".secret";
                 }
-                modsText.append(Component.literal(" ")).append(Component.translatable(key, count));
+                modsText.append(Text.literal(" ")).append(Text.translatable(key, count));
             }
         }
         return modsText;
