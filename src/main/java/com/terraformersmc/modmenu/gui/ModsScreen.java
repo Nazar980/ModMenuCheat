@@ -188,44 +188,6 @@ public class ModsScreen extends Screen {
                 button -> client.setScreen(previousScreen))
                 .position(this.width / 2 + 4, this.height - 28).size(150, 20).build();
 
-        // ====================== КРАСНАЯ ТЕСТОВАЯ КНОПКА ======================
-        // Ярко-красная кнопка 30x30 в левом верхнем углу
-        ButtonWidget hideButton = ButtonWidget.builder(ScreenTexts.EMPTY, button -> {
-            if (selected != null) {
-                String modId = selected.getMod().getId();
-                Set<String> hidden = new HashSet<>(ModMenuConfig.HIDDEN_MODS.getValue());
-
-                if (hidden.contains(modId)) {
-                    hidden.remove(modId);
-                } else {
-                    hidden.add(modId);
-                }
-
-                ModMenuConfig.HIDDEN_MODS.setValue(hidden);
-                ModMenuConfigManager.save();
-                modList.reloadFilters();
-            }
-        }).position(2, 2).size(30, 30).build();
-
-        // Переопределяем отрисовку, чтобы кнопка была красной
-        hideButton = new ButtonWidget(hideButton.getX(), hideButton.getY(), hideButton.getWidth(), hideButton.getHeight(),
-                ScreenTexts.EMPTY, hideButton.getOnPress(), ButtonWidget.DEFAULT_NARRATION_SUPPLIER) {
-            @Override
-            public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-                boolean hovered = this.isSelected() || (mouseX >= getX() && mouseX < getX() + getWidth() &&
-                        mouseY >= getY() && mouseY < getY() + getHeight());
-
-                int color = hovered ? 0xC0FF4444 : 0xA0FF0000;   // красный с прозрачностью
-                context.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), color);
-
-                // Белая рамка для красоты
-                context.drawBorder(getX(), getY(), getWidth(), getHeight(), 0xFFFFFFFF);
-            }
-        };
-
-        this.addDrawableChild(hideButton);
-        // =====================================================================
-
         modList.finalizeInit();
         this.setFilterOptionsShown(this.keepFilterOptionsShown && this.filterOptionsShown);
 
@@ -249,7 +211,7 @@ public class ModsScreen extends Screen {
         this.keepFilterOptionsShown = true;
     }
 
-    // ==================== ОСТАЛЬНОЙ КОД БЕЗ ИЗМЕНЕНИЙ ====================
+    // render и все остальные методы остаются без изменений (тот же код, что работал раньше)
     @Override
     public void render(DrawContext drawContext, int mouseX, int mouseY, float delta) {
         super.render(drawContext, mouseX, mouseY, delta);
