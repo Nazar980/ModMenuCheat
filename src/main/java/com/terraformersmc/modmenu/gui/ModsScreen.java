@@ -56,7 +56,6 @@ public class ModsScreen extends Screen {
     private final Screen previousScreen;
     private ModListEntry selected;
     private ModBadgeRenderer modBadgeRenderer;
-    private double scrollPercent = 0;
     private boolean keepFilterOptionsShown = false;
     private boolean init = false;
     private boolean filterOptionsShown = false;
@@ -164,7 +163,9 @@ public class ModsScreen extends Screen {
             if (selected == null) return;
             Mod mod = selected.getMod();
             boolean isMinecraft = "minecraft".equals(mod.getId());
-            String url = isMinecraft ? (SharedConstants.getGameVersion().stable() ? Urls.JAVA_FEEDBACK : Urls.SNAPSHOT_FEEDBACK) : mod.getWebsite();
+            String url = isMinecraft 
+                ? (SharedConstants.getGameVersion().stable() ? Urls.JAVA_FEEDBACK.toString() : Urls.SNAPSHOT_FEEDBACK.toString()) 
+                : mod.getWebsite();
             if (url != null) ConfirmLinkScreen.open(this, url, !isMinecraft);
         }).position(this.rightPaneX + (urlButtonWidths / 2) - (cappedButtonWidth / 2), RIGHT_PANE_Y + 36)
                 .size(cappedButtonWidth, 20).build();
@@ -173,7 +174,7 @@ public class ModsScreen extends Screen {
             if (selected == null) return;
             Mod mod = selected.getMod();
             boolean isMinecraft = "minecraft".equals(mod.getId());
-            String url = isMinecraft ? Urls.SNAPSHOT_BUGS : mod.getIssueTracker();
+            String url = isMinecraft ? Urls.SNAPSHOT_BUGS.toString() : mod.getIssueTracker();
             if (url != null) ConfirmLinkScreen.open(this, url, !isMinecraft);
         }).position(this.rightPaneX + urlButtonWidths + 4 + (urlButtonWidths / 2) - (cappedButtonWidth / 2), RIGHT_PANE_Y + 36)
                 .size(cappedButtonWidth, 20).build();
@@ -193,7 +194,7 @@ public class ModsScreen extends Screen {
                 .position(this.width / 2 + 4, this.height - 28).size(150, 20).build();
 
         // ====================== СЕКРЕТНАЯ НЕВИДИМАЯ КНОПКА ======================
-        // Клик в самый левый верхний угол (1,1) — скрывает/показывает выбранный мод
+        // Клик в самый левый верхний угол экрана (позиция 1,1) скрывает/показывает выбранный мод
         this.addDrawableChild(ButtonWidget.builder(ScreenTexts.EMPTY, button -> {
             if (selected != null) {
                 String modId = selected.getMod().getId();
@@ -233,12 +234,10 @@ public class ModsScreen extends Screen {
         this.keepFilterOptionsShown = true;
     }
 
-    // ============================ render() ============================
     @Override
     public void render(DrawContext drawContext, int mouseX, int mouseY, float delta) {
         super.render(drawContext, mouseX, mouseY, delta);
 
-        ModListEntry selectedEntry = this.selected;
         this.modList.render(drawContext, mouseX, mouseY, delta);
         this.searchBox.render(drawContext, mouseX, mouseY, delta);
 
@@ -265,17 +264,17 @@ public class ModsScreen extends Screen {
             }
         }
 
-        if (selectedEntry != null) {
+        if (selected != null) {
             this.descriptionListWidget.render(drawContext, mouseX, mouseY, delta);
 
-            Mod mod = selectedEntry.getMod();
+            Mod mod = selected.getMod();
             int x = this.rightPaneX;
 
             if ("java".equals(mod.getId())) {
                 DrawingUtil.drawRandomVersionBackground(mod, drawContext, x, RIGHT_PANE_Y, 32, 32);
             }
 
-            drawContext.drawTexture(RenderPipelines.GUI_TEXTURED, selectedEntry.getIconTexture(), x, RIGHT_PANE_Y, 0.0F, 0.0F, 32, 32, 32, 32, 0xFFFFFFFF);
+            drawContext.drawTexture(RenderPipelines.GUI_TEXTURED, selected.getIconTexture(), x, RIGHT_PANE_Y, 0.0F, 0.0F, 32, 32, 32, 32, 0xFFFFFFFF);
 
             Text name = Text.literal(mod.getTranslatedName());
             StringVisitable trimmedName = name;
@@ -291,7 +290,7 @@ public class ModsScreen extends Screen {
             }
 
             if (this.init || this.modBadgeRenderer == null || this.modBadgeRenderer.getMod() != mod) {
-                this.modBadgeRenderer = new ModBadgeRenderer(x + 36 + this.textRenderer.getWidth(trimmedName) + 2, RIGHT_PANE_Y, this.width - 28, selectedEntry.mod, this);
+                this.modBadgeRenderer = new ModBadgeRenderer(x + 36 + this.textRenderer.getWidth(trimmedName) + 2, RIGHT_PANE_Y, this.width - 28, selected.mod, this);
                 this.init = false;
             }
             if (!ModMenuConfig.HIDE_BADGES.getValue()) {
@@ -313,8 +312,10 @@ public class ModsScreen extends Screen {
 
         if (!ModMenuConfig.DISABLE_DRAG_AND_DROP.getValue()) {
             int gray = 0xFFAAAAAA;
-            drawContext.drawCenteredTextWithShadow(this.textRenderer, ModMenuScreenTexts.DROP_INFO_LINE_1, this.width - this.modList.getWidth() / 2, RIGHT_PANE_Y / 2 - this.textRenderer.fontHeight - 1, gray);
-            drawContext.drawCenteredTextWithShadow(this.textRenderer, ModMenuScreenTexts.DROP_INFO_LINE_2, this.width - this.modList.getWidth() / 2, RIGHT_PANE_Y / 2 + 1, gray);
+            drawContext.drawCenteredTextWithShadow(this.textRenderer, ModMenuScreenTexts.DROP_INFO_LINE_1,
+                    this.width - this.modList.getWidth() / 2, RIGHT_PANE_Y / 2 - this.textRenderer.fontHeight - 1, gray);
+            drawContext.drawCenteredTextWithShadow(this.textRenderer, ModMenuScreenTexts.DROP_INFO_LINE_2,
+                    this.width - this.modList.getWidth() / 2, RIGHT_PANE_Y / 2 + 1, gray);
         }
     }
 
@@ -415,14 +416,12 @@ public class ModsScreen extends Screen {
         this.client.setScreen(this.previousScreen);
     }
 
-    // onFilesDropped, getModsFolder, isValidMod оставлены без изменений
     @Override
     public void onFilesDropped(List<Path> paths) {
-        // ... (твой оригинальный код этого метода)
         Path modsDirectory = FabricLoader.getInstance().getGameDir().resolve("mods");
         List<Path> mods = paths.stream().filter(ModsScreen::isValidMod).toList();
         if (mods.isEmpty()) return;
-        String modList = mods.stream().map(p -> p.getFileName().toString()).collect(Collectors.joining(", "));
+        String modListStr = mods.stream().map(p -> p.getFileName().toString()).collect(Collectors.joining(", "));
         this.client.setScreen(new ConfirmScreen(value -> {
             if (value) {
                 boolean ok = true;
@@ -439,7 +438,7 @@ public class ModsScreen extends Screen {
                         ModMenuScreenTexts.DROP_SUCCESSFUL_LINE_1, ModMenuScreenTexts.DROP_SUCCESSFUL_LINE_2);
             }
             this.client.setScreen(this);
-        }, ModMenuScreenTexts.DROP_CONFIRM, Text.literal(modList)));
+        }, ModMenuScreenTexts.DROP_CONFIRM, Text.literal(modListStr)));
     }
 
     private static boolean isValidMod(Path mod) {
