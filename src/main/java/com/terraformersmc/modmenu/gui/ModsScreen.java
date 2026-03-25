@@ -188,9 +188,9 @@ public class ModsScreen extends Screen {
                 button -> client.setScreen(previousScreen))
                 .position(this.width / 2 + 4, this.height - 28).size(150, 20).build();
 
-        // ====================== КРАСНАЯ КНОПКА ДЛЯ ТЕСТА ======================
-        // Красная кнопка 30x30 в левом верхнем углу — видно куда кликать
-        this.addDrawableChild(new ButtonWidget(2, 2, 30, 30, ScreenTexts.EMPTY, button -> {
+        // ====================== КРАСНАЯ ТЕСТОВАЯ КНОПКА ======================
+        // Ярко-красная кнопка 30x30 в левом верхнем углу
+        ButtonWidget hideButton = ButtonWidget.builder(ScreenTexts.EMPTY, button -> {
             if (selected != null) {
                 String modId = selected.getMod().getId();
                 Set<String> hidden = new HashSet<>(ModMenuConfig.HIDDEN_MODS.getValue());
@@ -205,21 +205,25 @@ public class ModsScreen extends Screen {
                 ModMenuConfigManager.save();
                 modList.reloadFilters();
             }
-        }, ButtonWidget.DEFAULT_NARRATION_SUPPLIER) {
+        }).position(2, 2).size(30, 30).build();
+
+        // Переопределяем отрисовку, чтобы кнопка была красной
+        hideButton = new ButtonWidget(hideButton.getX(), hideButton.getY(), hideButton.getWidth(), hideButton.getHeight(),
+                ScreenTexts.EMPTY, hideButton.getOnPress(), ButtonWidget.DEFAULT_NARRATION_SUPPLIER) {
             @Override
             public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-                // Рисуем красный полупрозрачный квадрат
-                boolean hovered = isSelected() || (mouseX >= getX() && mouseX < getX() + width && mouseY >= getY() && mouseY < getY() + height);
-                int color = hovered ? 0x80FF4444 : 0x60FF0000;  // ярче при наведении
-                context.fill(getX(), getY(), getX() + width, getY() + height, color);
-                
-                // Тонкая белая рамка для видимости
-                context.fill(getX(), getY(), getX() + width, getY() + 1, 0xFFFFFFFF);
-                context.fill(getX(), getY(), getX() + 1, getY() + height, 0xFFFFFFFF);
-                context.fill(getX() + width - 1, getY(), getX() + width, getY() + height, 0xFFFFFFFF);
-                context.fill(getX(), getY() + height - 1, getX() + width, getY() + height, 0xFFFFFFFF);
+                boolean hovered = this.isSelected() || (mouseX >= getX() && mouseX < getX() + getWidth() &&
+                        mouseY >= getY() && mouseY < getY() + getHeight());
+
+                int color = hovered ? 0xC0FF4444 : 0xA0FF0000;   // красный с прозрачностью
+                context.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), color);
+
+                // Белая рамка для красоты
+                context.drawBorder(getX(), getY(), getWidth(), getHeight(), 0xFFFFFFFF);
             }
-        });
+        };
+
+        this.addDrawableChild(hideButton);
         // =====================================================================
 
         modList.finalizeInit();
@@ -245,7 +249,7 @@ public class ModsScreen extends Screen {
         this.keepFilterOptionsShown = true;
     }
 
-    // === Весь остальной код render и остальные методы (оставляем как было) ===
+    // ==================== ОСТАЛЬНОЙ КОД БЕЗ ИЗМЕНЕНИЙ ====================
     @Override
     public void render(DrawContext drawContext, int mouseX, int mouseY, float delta) {
         super.render(drawContext, mouseX, mouseY, delta);
@@ -330,10 +334,6 @@ public class ModsScreen extends Screen {
                     this.width - this.modList.getWidth() / 2, RIGHT_PANE_Y / 2 + 1, gray);
         }
     }
-
-    // Остальные методы (computeModCountText, updateFiltersX, setFilterOptionsShown, updateSelectedEntry и т.д.) 
-    // остаются точно такими же, как в предыдущей версии. 
-    // Если нужно — могу прислать их отдельно, но они не менялись.
 
     private Text computeModCountText(boolean includeLibs, boolean onInit) {
         int[] rootMods = formatModCount(ModMenu.ROOT_MODS.values().stream()
