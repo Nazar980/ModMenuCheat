@@ -37,7 +37,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Language;
 import net.minecraft.util.Urls;
 import net.minecraft.util.Util;
-import org.jetbrains.annotations.Nullable;
+import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,19 +211,19 @@ public class ModsScreen extends Screen {
         this.keepFilterOptionsShown = true;
     }
 
-    // ==================== ОБНОВЛЕНИЕ ПО F5 ====================
+    // ==================== ОБНОВЛЕНИЕ СПИСКА ПО F5 ====================
     @Override
     public boolean keyPressed(KeyInput input) {
-        // F5 — обновить список модов из конфига
-        if (input.getCode() == 292) {   // 292 = F5
+        // F5 = обновить список модов из конфига
+        if (input.matchesKey(GLFW.GLFW_KEY_F5, 0)) {
             ModMenuConfigManager.initializeConfig();   // перезагружаем конфиг
-            modList.reloadFilters();
+            modList.reloadFilters();                   // обновляем список
             return true;
         }
 
         return super.keyPressed(input) || this.searchBox.keyPressed(input);
     }
-    // ========================================================
+    // ============================================================
 
     @Override
     public void render(DrawContext drawContext, int mouseX, int mouseY, float delta) {
@@ -310,6 +310,7 @@ public class ModsScreen extends Screen {
         }
     }
 
+    // ==================== Остальные методы (скопируй из своей предыдущей рабочей версии) ====================
     private Text computeModCountText(boolean includeLibs, boolean onInit) {
         int[] rootMods = formatModCount(ModMenu.ROOT_MODS.values().stream()
                 .filter(mod -> !mod.isHidden() && !mod.getBadges().contains(Mod.Badge.LIBRARY))
