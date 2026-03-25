@@ -17,6 +17,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.metadata.ModOrigin;
 import net.minecraft.SharedConstants;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ConfirmLinkScreen;
@@ -37,7 +38,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Language;
 import net.minecraft.util.Urls;
 import net.minecraft.util.Util;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,6 +83,9 @@ public class ModsScreen extends Screen {
 
     private static final Text SEND_FEEDBACK_TEXT = Text.translatable("menu.sendFeedback");
     private static final Text REPORT_BUGS_TEXT = Text.translatable("menu.reportBugs");
+
+    // Таймер для автообновления конфига каждые 3 секунды
+    private long lastConfigCheck = 0;
 
     public ModsScreen(Screen previousScreen) {
         super(ModMenuScreenTexts.TITLE);
@@ -209,21 +212,22 @@ public class ModsScreen extends Screen {
 
         this.init = true;
         this.keepFilterOptionsShown = true;
+        this.lastConfigCheck = System.currentTimeMillis();
     }
 
-    // ==================== ОБНОВЛЕНИЕ СПИСКА ПО F5 ====================
+    // ==================== АВТООБНОВЛЕНИЕ КАЖДЫЕ 3 СЕКУНДЫ ====================
     @Override
-    public boolean keyPressed(KeyInput input) {
-        // F5 = обновить список модов из конфига
-        if (input.matchesKey(GLFW.GLFW_KEY_F5, 0)) {
-            ModMenuConfigManager.initializeConfig();   // перезагружаем конфиг
-            modList.reloadFilters();                   // обновляем список
-            return true;
-        }
+    public void tick() {
+        super.tick();
 
-        return super.keyPressed(input) || this.searchBox.keyPressed(input);
+        long now = System.currentTimeMillis();
+        if (now - lastConfigCheck > 3000) {        // каждые 3 секунды
+            lastConfigCheck = now;
+            ModMenuConfigManager.initializeConfig();   // перечитываем конфиг
+            modList.reloadFilters();                   // обновляем список
+        }
     }
-    // ============================================================
+    // =====================================================================
 
     @Override
     public void render(DrawContext drawContext, int mouseX, int mouseY, float delta) {
@@ -310,7 +314,7 @@ public class ModsScreen extends Screen {
         }
     }
 
-    // ==================== Остальные методы (скопируй из своей предыдущей рабочей версии) ====================
+    // ==================== Остальные методы (скопируй из своей последней рабочей версии) ====================
     private Text computeModCountText(boolean includeLibs, boolean onInit) {
         int[] rootMods = formatModCount(ModMenu.ROOT_MODS.values().stream()
                 .filter(mod -> !mod.isHidden() && !mod.getBadges().contains(Mod.Badge.LIBRARY))
