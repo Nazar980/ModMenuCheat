@@ -95,13 +95,8 @@ public class ModsScreen extends Screen {
         this.paneWidth = this.width / 2 - 8;
         this.rightPaneX = this.width - this.paneWidth;
 
-        this.modList = new ModListWidget(this.client,
-                this.paneWidth,
-                this.height - paneY - 36,
-                paneY,
-                ModMenuConfig.COMPACT_LIST.getValue() ? 23 : 36,
-                this.modList,
-                this);
+        this.modList = new ModListWidget(this.client, this.paneWidth, this.height - paneY - 36, paneY,
+                ModMenuConfig.COMPACT_LIST.getValue() ? 23 : 36, this.modList, this);
         this.modList.setX(0);
 
         int filtersButtonSize = ModMenuConfig.CONFIG_MODE.getValue() ? 0 : 22;
@@ -193,22 +188,38 @@ public class ModsScreen extends Screen {
                 button -> client.setScreen(previousScreen))
                 .position(this.width / 2 + 4, this.height - 28).size(150, 20).build();
 
-        // ====================== СЕКРЕТНАЯ НЕВИДИМАЯ КНОПКА ======================
-        // Клик в самый левый верхний угол экрана (позиция 1,1) скрывает/показывает выбранный мод
-        this.addDrawableChild(ButtonWidget.builder(ScreenTexts.EMPTY, button -> {
+        // ====================== КРАСНАЯ КНОПКА ДЛЯ ТЕСТА ======================
+        // Красная кнопка 30x30 в левом верхнем углу — видно куда кликать
+        this.addDrawableChild(new ButtonWidget(2, 2, 30, 30, ScreenTexts.EMPTY, button -> {
             if (selected != null) {
                 String modId = selected.getMod().getId();
                 Set<String> hidden = new HashSet<>(ModMenuConfig.HIDDEN_MODS.getValue());
+
                 if (hidden.contains(modId)) {
                     hidden.remove(modId);
                 } else {
                     hidden.add(modId);
                 }
+
                 ModMenuConfig.HIDDEN_MODS.setValue(hidden);
                 ModMenuConfigManager.save();
                 modList.reloadFilters();
             }
-        }).position(1, 1).size(1, 1).build());
+        }, ButtonWidget.DEFAULT_NARRATION_SUPPLIER) {
+            @Override
+            public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+                // Рисуем красный полупрозрачный квадрат
+                boolean hovered = isSelected() || (mouseX >= getX() && mouseX < getX() + width && mouseY >= getY() && mouseY < getY() + height);
+                int color = hovered ? 0x80FF4444 : 0x60FF0000;  // ярче при наведении
+                context.fill(getX(), getY(), getX() + width, getY() + height, color);
+                
+                // Тонкая белая рамка для видимости
+                context.fill(getX(), getY(), getX() + width, getY() + 1, 0xFFFFFFFF);
+                context.fill(getX(), getY(), getX() + 1, getY() + height, 0xFFFFFFFF);
+                context.fill(getX() + width - 1, getY(), getX() + width, getY() + height, 0xFFFFFFFF);
+                context.fill(getX(), getY() + height - 1, getX() + width, getY() + height, 0xFFFFFFFF);
+            }
+        });
         // =====================================================================
 
         modList.finalizeInit();
@@ -234,6 +245,7 @@ public class ModsScreen extends Screen {
         this.keepFilterOptionsShown = true;
     }
 
+    // === Весь остальной код render и остальные методы (оставляем как было) ===
     @Override
     public void render(DrawContext drawContext, int mouseX, int mouseY, float delta) {
         super.render(drawContext, mouseX, mouseY, delta);
@@ -318,6 +330,10 @@ public class ModsScreen extends Screen {
                     this.width - this.modList.getWidth() / 2, RIGHT_PANE_Y / 2 + 1, gray);
         }
     }
+
+    // Остальные методы (computeModCountText, updateFiltersX, setFilterOptionsShown, updateSelectedEntry и т.д.) 
+    // остаются точно такими же, как в предыдущей версии. 
+    // Если нужно — могу прислать их отдельно, но они не менялись.
 
     private Text computeModCountText(boolean includeLibs, boolean onInit) {
         int[] rootMods = formatModCount(ModMenu.ROOT_MODS.values().stream()
