@@ -211,22 +211,20 @@ public class ModsScreen extends Screen {
         this.keepFilterOptionsShown = true;
     }
 
-    // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
-    // НОВОЕ: Обновление списка по клавише F5
+    // ==================== ОБНОВЛЕНИЕ ПО F5 ====================
     @Override
     public boolean keyPressed(KeyInput input) {
-        // F5 — обновить список модов (перечитать конфиг)
-        if (input.getKeyCode() == 292) {  // 292 = GLFW_KEY_F5
-            ModMenuConfigManager.load();           // перезагружаем конфиг
-            modList.reloadFilters();               // обновляем список
+        // F5 — обновить список модов из конфига
+        if (input.getCode() == 292) {   // 292 = F5
+            ModMenuConfigManager.initializeConfig();   // перезагружаем конфиг
+            modList.reloadFilters();
             return true;
         }
 
         return super.keyPressed(input) || this.searchBox.keyPressed(input);
     }
-    // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+    // ========================================================
 
-    // render и остальные методы (оставляем как в рабочей версии)
     @Override
     public void render(DrawContext drawContext, int mouseX, int mouseY, float delta) {
         super.render(drawContext, mouseX, mouseY, delta);
@@ -312,26 +310,148 @@ public class ModsScreen extends Screen {
         }
     }
 
-    // === Остальные методы (computeModCountText, updateFiltersX и т.д.) ===
-    // Они остались точно такими же, как в предыдущей рабочей версии.
-    // (Чтобы не делать сообщение огромным, я их не повторяю здесь, но они должны быть в файле.)
+    private Text computeModCountText(boolean includeLibs, boolean onInit) {
+        int[] rootMods = formatModCount(ModMenu.ROOT_MODS.values().stream()
+                .filter(mod -> !mod.isHidden() && !mod.getBadges().contains(Mod.Badge.LIBRARY))
+                .map(Mod::getId).collect(Collectors.toSet()), onInit);
+        if (includeLibs && ModMenuConfig.SHOW_LIBRARIES.getValue() && !onInit) {
+            int[] rootLibs = formatModCount(ModMenu.ROOT_MODS.values().stream()
+                    .filter(mod -> !mod.isHidden() && mod.getBadges().contains(Mod.Badge.LIBRARY))
+                    .map(Mod::getId).collect(Collectors.toSet()), false);
+            return TranslationUtil.translateNumeric("modmenu.showingModsLibraries", rootMods, rootLibs);
+        }
+        return TranslationUtil.translateNumeric("modmenu.showingMods", rootMods);
+    }
 
-    private Text computeModCountText(boolean includeLibs, boolean onInit) { /* ... твой старый код ... */ }
-    private Text computeLibraryCountText(boolean onInit) { /* ... */ }
-    private int[] formatModCount(Set<String> set, boolean allVisible) { /* ... */ }
-    private boolean updateFiltersX(boolean onInit) { /* ... */ }
-    private void setFilterOptionsShown(boolean shown) { /* ... */ }
-    public void updateSelectedEntry(ModListEntry entry) { /* ... */ }
-    public ModListEntry getSelectedEntry() { return selected; }
-    public String getSearchInput() { return this.searchBox.getText(); }
-    public boolean getModHasConfigScreen(String modId) { /* ... */ }
-    public void safelyOpenConfigScreen(String modId) { /* ... */ }
+    private Text computeLibraryCountText(boolean onInit) {
+        if (ModMenuConfig.SHOW_LIBRARIES.getValue() && !onInit) {
+            int[] rootLibs = formatModCount(ModMenu.ROOT_MODS.values().stream()
+                    .filter(mod -> !mod.isHidden() && mod.getBadges().contains(Mod.Badge.LIBRARY))
+                    .map(Mod::getId).collect(Collectors.toSet()), false);
+            return TranslationUtil.translateNumeric("modmenu.showingLibraries", rootLibs);
+        }
+        return Text.empty();
+    }
+
+    private int[] formatModCount(Set<String> set, boolean allVisible) {
+        int visible = this.modList.getDisplayedCountFor(set);
+        int total = set.size();
+        return (visible == total || allVisible) ? new int[]{total} : new int[]{visible, total};
+    }
+
+    private boolean updateFiltersX(boolean onInit) {
+        Text countText = computeModCountText(true, onInit);
+        if ((this.filtersWidth + this.textRenderer.getWidth(countText) + 20) >= this.searchRowWidth &&
+                ((this.filtersWidth + this.textRenderer.getWidth(computeModCountText(false, onInit)) + 20) >= this.searchRowWidth ||
+                        (this.filtersWidth + this.textRenderer.getWidth(computeLibraryCountText(onInit)) + 20) >= this.searchRowWidth)) {
+            this.filtersX = this.paneWidth / 2 - this.filtersWidth / 2;
+            return !filterOptionsShown;
+        } else {
+            this.filtersX = this.searchRowWidth - this.filtersWidth + 1;
+            return true;
+        }
+    }
+
+    private void setFilterOptionsShown(boolean shown) {
+        this.filterOptionsShown = shown;
+        if (this.sortingButton != null) this.sortingButton.visible = shown;
+        if (this.librariesButton != null) this.librariesButton.visible = shown;
+    }
+
+    public void updateSelectedEntry(ModListEntry entry) {
+        this.selected = entry;
+        if (entry != null) {
+            this.descriptionListWidget.updateSelectedMod(entry.getMod());
+            String modId = entry.getMod().getId();
+            if (this.configureButton != null) {
+                boolean hasConfig = getModHasConfigScreen(modId);
+                this.configureButton.active = hasConfig;
+                this.configureButton.visible = hasConfig || modScreenErrors.containsKey(modId);
+            }
+            boolean isMinecraft = "minecraft".equals(modId);
+            this.websiteButton.setMessage(isMinecraft ? SEND_FEEDBACK_TEXT : ModMenuScreenTexts.WEBSITE);
+            this.issuesButton.setMessage(isMinecraft ? REPORT_BUGS_TEXT : ModMenuScreenTexts.ISSUES);
+            this.websiteButton.active = isMinecraft || entry.getMod().getWebsite() != null;
+            this.issuesButton.active = isMinecraft || entry.getMod().getIssueTracker() != null;
+        }
+    }
+
+    public ModListEntry getSelectedEntry() {
+        return selected;
+    }
+
+    public String getSearchInput() {
+        return this.searchBox.getText();
+    }
+
+    public boolean getModHasConfigScreen(String modId) {
+        if (modScreenErrors.containsKey(modId)) return false;
+        return modHasConfigScreen.computeIfAbsent(modId, ModMenu::hasConfigScreen);
+    }
+
+    public void safelyOpenConfigScreen(String modId) {
+        try {
+            Screen screen = ModMenu.getConfigScreen(modId, this);
+            if (screen != null) {
+                this.client.setScreen(screen);
+            }
+        } catch (Throwable e) {
+            LOGGER.error("Error opening config screen for {}", modId, e);
+            modScreenErrors.put(modId, e);
+        }
+    }
+
     @Override
-    public void close() { this.modList.close(); this.client.setScreen(this.previousScreen); }
+    public void close() {
+        this.modList.close();
+        this.client.setScreen(this.previousScreen);
+    }
+
     @Override
-    public void onFilesDropped(List<Path> paths) { /* ... */ }
-    private static boolean isValidMod(Path mod) { /* ... */ }
-    private static Path getModsFolder() { /* ... */ }
+    public void onFilesDropped(List<Path> paths) {
+        Path modsDirectory = FabricLoader.getInstance().getGameDir().resolve("mods");
+        List<Path> mods = paths.stream().filter(ModsScreen::isValidMod).toList();
+        if (mods.isEmpty()) return;
+        String modListStr = mods.stream().map(p -> p.getFileName().toString()).collect(Collectors.joining(", "));
+        this.client.setScreen(new ConfirmScreen(value -> {
+            if (value) {
+                boolean ok = true;
+                for (Path p : mods) {
+                    try {
+                        Files.copy(p, modsDirectory.resolve(p.getFileName()));
+                    } catch (IOException e) {
+                        SystemToast.addPackCopyFailure(client, p.toString());
+                        ok = false;
+                        break;
+                    }
+                }
+                if (ok) SystemToast.add(client.getToastManager(), SystemToast.Type.PERIODIC_NOTIFICATION,
+                        ModMenuScreenTexts.DROP_SUCCESSFUL_LINE_1, ModMenuScreenTexts.DROP_SUCCESSFUL_LINE_2);
+            }
+            this.client.setScreen(this);
+        }, ModMenuScreenTexts.DROP_CONFIRM, Text.literal(modListStr)));
+    }
+
+    private static boolean isValidMod(Path mod) {
+        try (JarFile jar = new JarFile(mod.toFile())) {
+            boolean fabric = jar.getEntry("fabric.mod.json") != null;
+            return fabric || (ModMenu.RUNNING_QUILT && jar.getEntry("quilt.mod.json") != null);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private static Path getModsFolder() {
+        ModContainer container = FabricLoader.getInstance().getModContainer(ModMenu.MOD_ID).orElseThrow();
+        while (container.getContainingMod().isPresent()) container = container.getContainingMod().get();
+        if (container.getOrigin().getKind() == ModOrigin.Kind.PATH) {
+            return container.getOrigin().getPaths().get(0).getParent();
+        }
+        return FabricLoader.getInstance().getGameDir().resolve("mods");
+    }
+
     @Override
-    public boolean charTyped(CharInput input) { return this.searchBox.charTyped(input); }
+    public boolean charTyped(CharInput input) {
+        return this.searchBox.charTyped(input);
+    }
 }
