@@ -17,7 +17,6 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.metadata.ModOrigin;
 import net.minecraft.SharedConstants;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ConfirmLinkScreen;
@@ -40,7 +39,6 @@ import net.minecraft.util.Urls;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -70,11 +68,11 @@ public class ModsScreen extends Screen {
 
     public final Set<String> showModChildren = new HashSet<>();
     private TextFieldWidget searchBox;
-    private @Nullable ClickableWidget filtersButton;
+    private ClickableWidget filtersButton;
     private ClickableWidget sortingButton;
     private ClickableWidget librariesButton;
     private ModListWidget modList;
-    private @Nullable ClickableWidget configureButton;
+    private ClickableWidget configureButton;
     private ClickableWidget websiteButton;
     private ClickableWidget issuesButton;
     private DescriptionListWidget descriptionListWidget;
@@ -85,7 +83,7 @@ public class ModsScreen extends Screen {
     private static final Text SEND_FEEDBACK_TEXT = Text.translatable("menu.sendFeedback");
     private static final Text REPORT_BUGS_TEXT = Text.translatable("menu.reportBugs");
 
-    // Таймер для автообновления конфига каждые 3 секунды
+    // Автообновление конфига
     private long lastConfigCheck = 0;
 
     public ModsScreen(Screen previousScreen) {
@@ -216,19 +214,32 @@ public class ModsScreen extends Screen {
         this.lastConfigCheck = System.currentTimeMillis();
     }
 
-    // ==================== АВТООБНОВЛЕНИЕ КАЖДЫЕ 3 СЕКУНДЫ ====================
+    // Автообновление каждые 3 секунды с сохранением выбранного мода
     @Override
     public void tick() {
         super.tick();
 
         long now = System.currentTimeMillis();
-        if (now - lastConfigCheck > 3000) {        // каждые 3 секунды
+        if (now - lastConfigCheck > 3000) {
             lastConfigCheck = now;
-            ModMenuConfigManager.initializeConfig();   // перечитываем конфиг
-            modList.reloadFilters();                   // обновляем список
+
+            String previouslySelectedId = (selected != null) ? selected.getMod().getId() : null;
+
+            ModMenuConfigManager.initializeConfig();
+            modList.reloadFilters();
+
+            // Восстанавливаем выбранный мод, если он всё ещё есть
+            if (previouslySelectedId != null) {
+                for (ModListEntry entry : modList.children()) {
+                    if (entry.getMod().getId().equals(previouslySelectedId)) {
+                        modList.select(entry);
+                        this.updateSelectedEntry(entry);
+                        break;
+                    }
+                }
+            }
         }
     }
-    // =====================================================================
 
     @Override
     public void render(DrawContext drawContext, int mouseX, int mouseY, float delta) {
@@ -315,7 +326,7 @@ public class ModsScreen extends Screen {
         }
     }
 
-    // ==================== Остальные методы (скопируй из своей последней рабочей версии) ====================
+    // ==================== Остальные методы (оставь как были в рабочей версии) ====================
     private Text computeModCountText(boolean includeLibs, boolean onInit) {
         int[] rootMods = formatModCount(ModMenu.ROOT_MODS.values().stream()
                 .filter(mod -> !mod.isHidden() && !mod.getBadges().contains(Mod.Badge.LIBRARY))
